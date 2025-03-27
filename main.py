@@ -9,7 +9,19 @@ import sys
 import argparse
 import shutil
 import platform
+import os
 
+class ChessPieces:
+    """Unicode and Letter-based Chess Piece Representations"""
+    UNICODE = {
+        'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔',
+        'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚'
+    }
+    
+    LETTERS = {
+        'P': 'P', 'N': 'N', 'B': 'B', 'R': 'R', 'Q': 'Q', 'K': 'K',
+        'p': 'p', 'n': 'n', 'b': 'b', 'r': 'r', 'q': 'q', 'k': 'k'
+    }
 class ChessColors:
     """Define color scheme for the chessboard"""
     LIGHT_SQUARE = "on bright_white"
@@ -23,10 +35,23 @@ class ChessUI:
     """Handles terminal-based chess board rendering"""
     
     @staticmethod
+    def clear_screen():
+        """Clear terminal screen cross-platform"""
+        os.system('cls' if os.name == 'nt' else 'clear')
+    
+    @staticmethod
     def render_board(board: chess.Board, console: Console, 
                      last_move: Optional[chess.Move] = None, 
-                     legal_moves: Optional[list] = None) -> None:
+                     legal_moves: Optional[list] = None,
+                     piece_mode: str = 'unicode') -> None:
         """Render the chessboard with rich formatting"""
+        # Choose piece representation
+        pieces = (ChessPieces.UNICODE if piece_mode == 'unicode' 
+                  else ChessPieces.LETTERS)
+        
+        # Clear screen to create fixed board position
+        ChessUI.clear_screen()
+        
         board_display = []
         
         # Render column headers
@@ -59,8 +84,8 @@ class ChessUI:
                 if piece:
                     piece_style = (ChessColors.WHITE_PIECE if piece.color == chess.WHITE 
                                    else ChessColors.BLACK_PIECE)
-                    square_symbol = piece.symbol().upper()
-                    piece_text = Text(square_symbol, style=f"{piece_style} {square_color}")
+                    piece_symbol = pieces[piece.symbol()]
+                    piece_text = Text(piece_symbol, style=f"{piece_style} {square_color}")
                 else:
                     piece_text = Text(".", style=square_color)
                 
@@ -86,6 +111,7 @@ class ChessGame:
         self.console = Console()
         self.move_history = []
         self.engine = None
+        self.piece_mode = 'unicode'
         
         # Stockfish setup if playing against computer
         if game_mode == "pvc":
@@ -188,7 +214,8 @@ class ChessGame:
                 self.board, 
                 self.console, 
                 last_move=last_move, 
-                legal_moves=legal_moves
+                legal_moves=legal_moves,
+                piece_mode=self.piece_mode
             )
             
             # Determine current player
@@ -211,6 +238,14 @@ class ChessGame:
             elif move_input.lower() == 'undo':
                 self.undo_move()
                 continue
+            elif move_input.lower().startswith('pieces '):
+                mode = move_input.lower().split()[1]
+                if mode in ['unicode', 'letters']:
+                    self.piece_mode = mode
+                    self.console.print(f"[green]Switched to {mode} piece representation.[/green]")
+                else:
+                    self.console.print("[red]Invalid piece mode. Use 'unicode' or 'letters'.[/red]")
+                continue
             
             # Process move
             move_result = self.make_move(move_input)
@@ -221,7 +256,7 @@ class ChessGame:
         # Game over handling
         self.console.print("\n[bold green]Game Over![/bold green]")
         self.show_result()
-    
+
     def show_help(self):
         """Display game help"""
         help_text = """
@@ -231,6 +266,8 @@ class ChessGame:
           - 'help': Show this help
           - 'undo': Take back the last move
           - 'quit': Exit the game
+          - 'pieces unicode': Switch to Unicode chess pieces
+          - 'pieces letters': Switch to letter-based chess pieces
         """
         self.console.print(Panel(help_text, title="Help", border_style="blue"))
     
