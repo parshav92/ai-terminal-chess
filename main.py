@@ -1,6 +1,5 @@
 import chess
 import chess.engine
-import chess.svg
 import rich
 from rich.console import Console
 from rich.panel import Panel
@@ -8,6 +7,8 @@ from rich.text import Text
 from typing import Optional, Tuple
 import sys
 import argparse
+import shutil
+import platform
 
 class ChessColors:
     """Define color scheme for the chessboard"""
@@ -84,15 +85,69 @@ class ChessGame:
         self.difficulty = difficulty
         self.console = Console()
         self.move_history = []
+        self.engine = None
         
         # Stockfish setup if playing against computer
         if game_mode == "pvc":
+            self.setup_stockfish()
+    
+    def setup_stockfish(self):
+        """Set up Stockfish engine with flexible path detection"""
+        # Detect Stockfish executable based on platform
+        stockfish_paths = self.get_stockfish_paths()
+        
+        for path in stockfish_paths:
             try:
-                self.engine = chess.engine.SimpleEngine.popen_uci("stockfish")
-                self.engine.configure({"Skill Level": difficulty})
-            except FileNotFoundError:
-                self.console.print("[red]Stockfish engine not found. Defaulting to PvP mode.[/red]")
-                self.game_mode = "pvp"
+                self.engine = chess.engine.SimpleEngine.popen_uci(path)
+                self.engine.configure({"Skill Level": self.difficulty})
+                self.console.print(f"[green]Stockfish found at: {path}[/green]")
+                return
+            except Exception:
+                continue
+        
+        # If no Stockfish found
+        self.console.print("[red]Stockfish engine not found. Install Stockfish or add to PATH.[/red]")
+        self.console.print("[yellow]Defaulting to Player vs Player mode.[/yellow]")
+        self.game_mode = "pvp"
+    
+    def get_stockfish_paths(self) -> list:
+        """Detect possible Stockfish executable paths"""
+        paths = []
+        
+        # Common names and paths
+        common_names = ['stockfish', 'stockfish.exe']
+        
+        # Platform-specific paths
+        if platform.system() == "Windows":
+            paths.extend([
+                "C:\\Program Files\\Stockfish\\stockfish.exe",
+                "C:\\Program Files (x86)\\Stockfish\\stockfish.exe",
+            ])
+        elif platform.system() == "Darwin":  # macOS
+            paths.extend([
+                "/usr/local/bin/stockfish",
+                "/opt/homebrew/bin/stockfish",
+                "/Applications/Stockfish.app/Contents/MacOS/stockfish"
+            ])
+        elif platform.system() == "Linux":
+            paths.extend([
+                "/usr/bin/stockfish",
+                "/usr/local/bin/stockfish"
+            ])
+        
+        # Add paths from system PATH
+        system_path = shutil.which('stockfish')
+        if system_path:
+            paths.append(system_path)
+        
+        # Add common names to all paths
+        full_paths = []
+        for path in paths:
+            full_paths.extend([path] + [
+                path.replace('stockfish', name) for name in common_names
+            ])
+        
+        return full_paths
     
     def make_move(self, move_san: str) -> bool:
         """Attempt to make a move on the board"""
@@ -111,7 +166,7 @@ class ChessGame:
     
     def computer_move(self) -> Optional[chess.Move]:
         """Computer makes a move using Stockfish"""
-        if self.game_mode != "pvc" or not hasattr(self, 'engine'):
+        if self.game_mode != "pvc" or not self.engine:
             return None
         
         try:
@@ -201,6 +256,14 @@ class ChessGame:
             self.console.print("[yellow]Fifty-move rule. The game is a draw.[/yellow]")
         elif self.board.is_repetition():
             self.console.print("[yellow]Threefold repetition. The game is a draw.[/yellow]")
+    
+    def __del__(self):
+        """Cleanup Stockfish engine"""
+        if self.engine:
+            try:
+                self.engine.quit()
+            except:
+                pass
 
 def main():
     parser = argparse.ArgumentParser(description="Chess CLI Game")
@@ -225,10 +288,6 @@ def main():
         game.play()
     except KeyboardInterrupt:
         print("\n[Game terminated by user]")
-    finally:
-        # Cleanup Stockfish engine if used
-        if hasattr(game, 'engine'):
-            game.engine.quit()
 
 if __name__ == "__main__":
     main()
