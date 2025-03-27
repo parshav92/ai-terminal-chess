@@ -241,20 +241,21 @@ class ChessGame:
         """Main game loop"""
         last_move = None
         legal_moves = None
+        messages = []
         
         while not self.board.is_game_over():
-            # Render board, but only clear screen for normal gameplay
-            if not (last_move is None and legal_moves is None):
-                ChessUI.clear_screen()
-            
-            # Render board
-            ChessUI.render_board(
+            # Render game screen with potential messages
+            ChessUI.render_game_screen(
                 self.board, 
                 self.console, 
+                messages=messages,
                 last_move=last_move, 
                 legal_moves=legal_moves,
                 piece_mode=self.piece_mode
             )
+            
+            # Reset messages after rendering
+            messages = []
             
             # Determine current player
             current_player = "White" if self.board.turn == chess.WHITE else "Black"
@@ -270,25 +271,30 @@ class ChessGame:
             # Command handling
             if move_input.lower() == 'help':
                 self.show_help()
-                input("Press Enter to continue...")  # Wait for user to read help
+                input("Press Enter to continue...")
+                messages.append("[yellow]Returned to game.[/yellow]")
                 continue
             elif move_input.lower() in ['quit', 'exit']:
                 break
             elif move_input.lower() == 'undo':
-                self.undo_move()
+                result = self.undo_move()
+                if result:
+                    messages.append("[yellow]Last move undone.[/yellow]")
                 continue
             elif move_input.lower().startswith('pieces '):
                 mode = move_input.lower().split()[1]
                 if mode in ['unicode', 'letters']:
                     self.piece_mode = mode
-                    self.console.print(f"[green]Switched to {mode} piece representation.[/green]")
+                    messages.append(f"[green]Switched to {mode} piece representation.[/green]")
                 else:
-                    self.console.print("[red]Invalid piece mode. Use 'unicode' or 'letters'.[/red]")
+                    messages.append("[red]Invalid piece mode. Use 'unicode' or 'letters'.[/red]")
                 continue
             
             # Process move
             move_result = self.make_move(move_input)
-            if move_result:
+            if not move_result:
+                messages.append("[red]Invalid move. Try again.[/red]")
+            else:
                 last_move = self.board.peek()
                 legal_moves = list(self.board.legal_moves)
         
