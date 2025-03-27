@@ -1,0 +1,234 @@
+import chess
+import chess.engine
+import chess.svg
+import rich
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from typing import Optional, Tuple
+import sys
+import argparse
+
+class ChessColors:
+    """Define color scheme for the chessboard"""
+    LIGHT_SQUARE = "on bright_white"
+    DARK_SQUARE = "on bright_black"
+    WHITE_PIECE = "bold white"
+    BLACK_PIECE = "bold black"
+    HIGHLIGHT = "on green"
+    LAST_MOVE = "on yellow"
+
+class ChessUI:
+    """Handles terminal-based chess board rendering"""
+    
+    @staticmethod
+    def render_board(board: chess.Board, console: Console, 
+                     last_move: Optional[chess.Move] = None, 
+                     legal_moves: Optional[list] = None) -> None:
+        """Render the chessboard with rich formatting"""
+        board_display = []
+        
+        # Render column headers
+        column_headers = "   " + " ".join([chr(97 + i) for i in range(8)])
+        board_display.append(Text(column_headers, style="bold blue"))
+        
+        for rank in range(7, -1, -1):
+            row_display = [Text(str(rank + 1), style="bold blue")]
+            
+            for file in range(8):
+                square = chess.square(file, rank)
+                piece = board.piece_at(square)
+                
+                # Determine square color
+                square_color = (ChessColors.LIGHT_SQUARE if (file + rank) % 2 == 0 
+                                else ChessColors.DARK_SQUARE)
+                
+                # Highlight logic
+                is_last_move = (last_move and 
+                                (square == last_move.from_square or 
+                                 square == last_move.to_square))
+                is_legal_move = (legal_moves and square in [move.to_square for move in legal_moves])
+                
+                if is_last_move:
+                    square_color += f" {ChessColors.LAST_MOVE}"
+                elif is_legal_move:
+                    square_color += f" {ChessColors.HIGHLIGHT}"
+                
+                # Piece rendering
+                if piece:
+                    piece_style = (ChessColors.WHITE_PIECE if piece.color == chess.WHITE 
+                                   else ChessColors.BLACK_PIECE)
+                    square_symbol = piece.symbol().upper()
+                    piece_text = Text(square_symbol, style=f"{piece_style} {square_color}")
+                else:
+                    piece_text = Text(".", style=square_color)
+                
+                row_display.append(piece_text)
+            
+            board_display.append(Text(" ").join(row_display))
+        
+        # Render board panel
+        board_panel = Panel(
+            Text("\n").join(board_display), 
+            title="Chess Board", 
+            border_style="blue"
+        )
+        console.print(board_panel)
+
+class ChessGame:
+    """Main game management class"""
+    
+    def __init__(self, game_mode: str = "pvp", difficulty: int = 2):
+        self.board = chess.Board()
+        self.game_mode = game_mode
+        self.difficulty = difficulty
+        self.console = Console()
+        self.move_history = []
+        
+        # Stockfish setup if playing against computer
+        if game_mode == "pvc":
+            try:
+                self.engine = chess.engine.SimpleEngine.popen_uci("stockfish")
+                self.engine.configure({"Skill Level": difficulty})
+            except FileNotFoundError:
+                self.console.print("[red]Stockfish engine not found. Defaulting to PvP mode.[/red]")
+                self.game_mode = "pvp"
+    
+    def make_move(self, move_san: str) -> bool:
+        """Attempt to make a move on the board"""
+        try:
+            move = self.board.parse_san(move_san)
+            if move in self.board.legal_moves:
+                self.move_history.append(move)
+                self.board.push(move)
+                return True
+            else:
+                self.console.print("[red]Illegal move! Try again.[/red]")
+                return False
+        except ValueError:
+            self.console.print("[red]Invalid move notation! Use Standard Algebraic Notation.[/red]")
+            return False
+    
+    def computer_move(self) -> Optional[chess.Move]:
+        """Computer makes a move using Stockfish"""
+        if self.game_mode != "pvc" or not hasattr(self, 'engine'):
+            return None
+        
+        try:
+            result = self.engine.play(self.board, chess.engine.Limit(time=0.1))
+            self.board.push(result.move)
+            return result.move
+        except Exception as e:
+            self.console.print(f"[red]Computer move error: {e}[/red]")
+            return None
+    
+    def play(self):
+        """Main game loop"""
+        last_move = None
+        legal_moves = None
+        
+        while not self.board.is_game_over():
+            # Render board
+            ChessUI.render_board(
+                self.board, 
+                self.console, 
+                last_move=last_move, 
+                legal_moves=legal_moves
+            )
+            
+            # Determine current player
+            current_player = "White" if self.board.turn == chess.WHITE else "Black"
+            
+            # Computer move if in Player vs Computer mode
+            if self.game_mode == "pvc" and current_player == "Black":
+                last_move = self.computer_move()
+                continue
+            
+            # Player move input
+            move_input = input(f"{current_player}'s turn. Enter move (or 'help'): ").strip()
+            
+            # Command handling
+            if move_input.lower() == 'help':
+                self.show_help()
+                continue
+            elif move_input.lower() in ['quit', 'exit']:
+                break
+            elif move_input.lower() == 'undo':
+                self.undo_move()
+                continue
+            
+            # Process move
+            move_result = self.make_move(move_input)
+            if move_result:
+                last_move = self.board.peek()
+                legal_moves = list(self.board.legal_moves)
+        
+        # Game over handling
+        self.console.print("\n[bold green]Game Over![/bold green]")
+        self.show_result()
+    
+    def show_help(self):
+        """Display game help"""
+        help_text = """
+        Chess CLI Help:
+        • Enter moves in Standard Algebraic Notation (e.g., 'e4', 'Nf3')
+        • Special commands:
+          - 'help': Show this help
+          - 'undo': Take back the last move
+          - 'quit': Exit the game
+        """
+        self.console.print(Panel(help_text, title="Help", border_style="blue"))
+    
+    def undo_move(self):
+        """Undo the last move"""
+        if self.move_history:
+            self.board.pop()
+            self.move_history.pop()
+            self.console.print("[yellow]Last move undone.[/yellow]")
+        else:
+            self.console.print("[red]No moves to undo![/red]")
+    
+    def show_result(self):
+        """Show game result and reason"""
+        if self.board.is_checkmate():
+            winner = "Black" if self.board.turn == chess.WHITE else "White"
+            self.console.print(f"[bold green]Checkmate! {winner} wins![/bold green]")
+        elif self.board.is_stalemate():
+            self.console.print("[yellow]Stalemate! The game is a draw.[/yellow]")
+        elif self.board.is_insufficient_material():
+            self.console.print("[yellow]Insufficient material. The game is a draw.[/yellow]")
+        elif self.board.is_fifty_moves():
+            self.console.print("[yellow]Fifty-move rule. The game is a draw.[/yellow]")
+        elif self.board.is_repetition():
+            self.console.print("[yellow]Threefold repetition. The game is a draw.[/yellow]")
+
+def main():
+    parser = argparse.ArgumentParser(description="Chess CLI Game")
+    parser.add_argument(
+        '--mode', 
+        choices=['pvp', 'pvc'], 
+        default='pvp', 
+        help='Game mode: Player vs Player or Player vs Computer'
+    )
+    parser.add_argument(
+        '--difficulty', 
+        type=int, 
+        default=2, 
+        choices=range(1, 21), 
+        help='Stockfish AI difficulty (1-20)'
+    )
+    
+    args = parser.parse_args()
+    
+    try:
+        game = ChessGame(game_mode=args.mode, difficulty=args.difficulty)
+        game.play()
+    except KeyboardInterrupt:
+        print("\n[Game terminated by user]")
+    finally:
+        # Cleanup Stockfish engine if used
+        if hasattr(game, 'engine'):
+            game.engine.quit()
+
+if __name__ == "__main__":
+    main()

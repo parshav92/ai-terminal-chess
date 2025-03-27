@@ -1,0 +1,3 @@
+python-chess==1.999
+rich==10.16.2
+stockfish>=3.28.0
