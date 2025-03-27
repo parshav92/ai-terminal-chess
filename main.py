@@ -209,6 +209,10 @@ class ChessGame:
         legal_moves = None
         
         while not self.board.is_game_over():
+            # Render board, but only clear screen for normal gameplay
+            if not (last_move is None and legal_moves is None):
+                ChessUI.clear_screen()
+            
             # Render board
             ChessUI.render_board(
                 self.board, 
@@ -232,6 +236,7 @@ class ChessGame:
             # Command handling
             if move_input.lower() == 'help':
                 self.show_help()
+                input("Press Enter to continue...")  # Wait for user to read help
                 continue
             elif move_input.lower() in ['quit', 'exit']:
                 break
