@@ -100,7 +100,7 @@ class ChessGame:
             try:
                 self.engine = chess.engine.SimpleEngine.popen_uci(path)
                 self.engine.configure({"Skill Level": self.difficulty})
-                self.console.print(f"[green]Stockfish found at: {path}[/green]")
+                # self.console.print(f"[green]Stockfish found at: {path}[/green]")
                 return
             except Exception:
                 continue
