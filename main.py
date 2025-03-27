@@ -40,6 +40,40 @@ class ChessUI:
         os.system('cls' if os.name == 'nt' else 'clear')
     
     @staticmethod
+    def render_game_screen(board: chess.Board, console: Console, 
+                            messages: list = None,
+                            last_move: Optional[chess.Move] = None, 
+                            legal_moves: Optional[list] = None,
+                            piece_mode: str = 'unicode') -> None:
+        """
+        Render the entire game screen with board and optional messages
+        
+        Args:
+            board: Current chess board state
+            console: Rich console for rendering
+            messages: List of messages to display before the board
+            last_move: Last move made
+            legal_moves: List of legal moves
+            piece_mode: Piece representation mode
+        """
+        # Clear screen
+        ChessUI.clear_screen()
+        
+        # Display any messages first
+        if messages:
+            for msg in messages:
+                console.print(msg)
+            console.print() 
+        
+        ChessUI.render_board(
+            board, 
+            console, 
+            last_move=last_move, 
+            legal_moves=legal_moves,
+            piece_mode=piece_mode
+        )
+    
+    @staticmethod
     def render_board(board: chess.Board, console: Console, 
                      last_move: Optional[chess.Move] = None, 
                      legal_moves: Optional[list] = None,
@@ -50,7 +84,7 @@ class ChessUI:
                   else ChessPieces.LETTERS)
         
         # Clear screen to create fixed board position
-        ChessUI.clear_screen()
+        # ChessUI.clear_screen()
         
         board_display = []
         
