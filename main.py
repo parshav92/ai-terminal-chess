@@ -55,7 +55,7 @@ class ChessUI:
         board_display = []
         
         # Render column headers
-        column_headers = "   " + " ".join([chr(97 + i) for i in range(8)])
+        column_headers = "  " + " ".join([chr(97 + i) for i in range(8)])
         board_display.append(Text(column_headers, style="bold blue"))
         
         for rank in range(7, -1, -1):
