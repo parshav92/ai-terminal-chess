@@ -28,15 +28,15 @@ sudo dnf install stockfish      # Fedora
 
 ### Player vs Player (default)
 ```bash
-python chess_cli.py
+python main.py
 ```
 
 ### Player vs Computer
 ```bash
-python chess_cli.py --mode pvc
+python main.py --mode pvc
 ```
 
 ### Set AI Difficulty (1-20)
 ```bash
-python chess_cli.py --mode pvc --difficulty 10
+python main.py --mode pvc --difficulty 10
 ```
