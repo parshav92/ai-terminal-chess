@@ -30,6 +30,7 @@ class ChessColors:
     BLACK_PIECE = "bold black"
     HIGHLIGHT = "on green"
     LAST_MOVE = "on yellow"
+    # BOARD_BACKGROUND = "on white"
 
 class ChessUI:
     """Handles terminal-based chess board rendering"""
@@ -78,22 +79,18 @@ class ChessUI:
                      last_move: Optional[chess.Move] = None, 
                      legal_moves: Optional[list] = None,
                      piece_mode: str = 'unicode') -> None:
-        """Render the chessboard with rich formatting"""
         # Choose piece representation
         pieces = (ChessPieces.UNICODE if piece_mode == 'unicode' 
                   else ChessPieces.LETTERS)
         
-        # Clear screen to create fixed board position
-        # ChessUI.clear_screen()
-        
         board_display = []
         
         # Render column headers
-        column_headers = "  " + " ".join([chr(97 + i) for i in range(8)])
+        column_headers = "   " + "  ".join([chr(97 + i) for i in range(8)])
         board_display.append(Text(column_headers, style="bold blue"))
         
         for rank in range(7, -1, -1):
-            row_display = [Text(str(rank + 1), style="bold blue")]
+            row_display = [Text(f"{rank + 1} ", style="bold blue")]
             
             for file in range(8):
                 square = chess.square(file, rank)
@@ -114,24 +111,28 @@ class ChessUI:
                 elif is_legal_move:
                     square_color += f" {ChessColors.HIGHLIGHT}"
                 
-                # Piece rendering
                 if piece:
                     piece_style = (ChessColors.WHITE_PIECE if piece.color == chess.WHITE 
                                    else ChessColors.BLACK_PIECE)
                     piece_symbol = pieces[piece.symbol()]
-                    piece_text = Text(piece_symbol, style=f"{piece_style} {square_color}")
+                    piece_text = Text(f" {piece_symbol} ", style=f"{piece_style} {square_color}")
                 else:
-                    piece_text = Text(".", style=square_color)
+                    piece_text = Text("   ", style=square_color)
                 
                 row_display.append(piece_text)
             
-            board_display.append(Text(" ").join(row_display))
+            row_display.append(Text(f" {rank + 1}", style="bold blue"))  # Add rank on the right
+            board_display.append(Text("").join(row_display))
         
-        # Render board panel
+        # Render column headers again at the bottom
+        board_display.append(Text(column_headers, style="bold blue"))
+        
         board_panel = Panel(
             Text("\n").join(board_display), 
             title="Chess Board", 
-            border_style="blue"
+            border_style="blue",
+            padding=(1, 2),
+            # style=ChessColors.BOARD_BACKGROUND  
         )
         console.print(board_panel)
 
