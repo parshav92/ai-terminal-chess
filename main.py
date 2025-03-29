@@ -28,7 +28,9 @@ class ChessColors:
     DARK_SQUARE = "on bright_black"
     WHITE_PIECE = "bold white"
     BLACK_PIECE = "bold black"
-    HIGHLIGHT = "on green"
+    # HIGHLIGHT = "on green"
+    LIGHT_HIGHLIGHT = "on cyan"
+    BLACK_HIGHLIGHT = "on magenta"
     LAST_MOVE = "on yellow"
     # BOARD_BACKGROUND = "on white"
 
@@ -109,7 +111,12 @@ class ChessUI:
                 if is_last_move:
                     square_color += f" {ChessColors.LAST_MOVE}"
                 elif is_legal_move:
-                    square_color += f" {ChessColors.HIGHLIGHT}"
+                    if square_color.strip() == ChessColors.LIGHT_SQUARE:
+                        # square_color += " on cyan" 
+                        square_color += f" {ChessColors.LIGHT_HIGHLIGHT}"
+                    else:
+                        # square_color += " on magenta"  
+                        square_color += f" {ChessColors.BLACK_HIGHLIGHT}"
                 
                 if piece:
                     piece_style = (ChessColors.WHITE_PIECE if piece.color == chess.WHITE 
